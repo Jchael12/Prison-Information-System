@@ -4,11 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "cd frontend && npm run build",
-    "start": "node backend/index.js",
-    "install": "cd backend && npm i && cd ../frontend && npm i --production=false",
-    "develop": "concurrently \"cd backend && npm run watch\" \"cd frontend && npm run dev\"",
-    "render-build": "npm install && npm run build"
+    "install-server": "cd backend && npm install",
+    "start-server": "cd backend && node index.js",
+    "install-client": "cd frontend && npm install",
+    "build-client": "cd frontend && npm run build",
+    "start-client": "cd frontend && npm start"
   },
   "keywords": [],
   "author": "",
