@@ -6,7 +6,7 @@ require("dotenv").config();
 
 //middleware
 const corsOptions = {
-  origin: "*",
+  origin: "https://prison-information-system.onrender.com",
 };
 app.use(express.json());
 app.use(cors(corsOptions));
