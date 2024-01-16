@@ -1,5 +1,7 @@
 const express = require("express");
 const cors = require("cors");
+const cloudinary = require("cloudinary");
+const multer = require("multer");
 const app = express();
 const port = process.env.PORT || 5000;
 require("dotenv").config();
@@ -7,9 +9,18 @@ require("dotenv").config();
 //middleware
 const corsOptions = {
   origin: "*",
+  credential: true,
 };
-app.use(express.json());
+
+//cloudinary configs
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
 app.use(cors(corsOptions));
+app.use(express.json());
 
 //
 app.get("/", (req, res) => {
@@ -37,22 +48,59 @@ async function run() {
     //create database collection
     const dataCollections = client.db("Detainees").collection("persons");
 
+    //multer setup
+    const storage = multer.memoryStorage();
+    const upload = multer({ storage: storage });
+
     //insert a person info to the database: via post method
-    app.post("/upload-info", async (req, res) => {
-      const data = req.body;
-      const result = await dataCollections.insertOne(data);
-      res.send(result);
+    app.post("/upload-info", upload.single("image"), async (req, res) => {
+      try {
+        const data = req.body;
+
+        if (req.file) {
+          // Convert buffer to Base64 string
+          const imageBuffer = req.file.buffer.toString("base64");
+
+          // Ensure unique public_id by using data._id
+          const public_id = `${data._id || Date.now()}-${req.file.originalname
+            .replace(/\s+/g, "_")
+            .toLowerCase()}`;
+
+          // Upload image to Cloudinary
+          const imageResult = await cloudinary.uploader.upload(
+            "data:image/png;base64," + imageBuffer,
+            {
+              folder: "images",
+              public_id: public_id,
+            },
+          );
+
+          console.log("Image Result: ", imageResult);
+
+          if (imageResult.secure_url) {
+            // Update data with image_url
+            data.image_url = imageResult.secure_url;
+          } else {
+            // Handle the case where Cloudinary upload failed
+            console.error("Cloudinary upload failed");
+            return res.status(500).json({ error: "Cloudinary Upload Failed" });
+          }
+        }
+
+        const result = await dataCollections.insertOne(data);
+        res.json(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Internal Server Error" });
+      }
     });
 
     //update a person info : patch or update method
     app.patch("/person/:id", async (req, res) => {
       const id = req.params.id;
-      // console.log(id);
       const updatePersonInfo = req.body;
-
       const filter = { _id: new ObjectId(id) };
       const options = { upsert: true };
-
       const updateDoc = {
         $set: {
           ...updatePersonInfo,
