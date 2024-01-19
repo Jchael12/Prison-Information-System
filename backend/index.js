@@ -128,7 +128,7 @@ async function run() {
       const id = req.params.id;
 
       try {
-        const filter = { _id: ObjectId(id) };
+        const filter = { _id: new ObjectId(id) };
         const result = await dataCollections.findOne(filter);
 
         if (result) {
