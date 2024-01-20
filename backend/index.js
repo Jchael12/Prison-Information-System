@@ -95,25 +95,53 @@ async function run() {
       }
     });
 
-    //update a person info : patch or update method
-    app.patch("/person/:id", async (req, res) => {
-      const id = req.params.id;
-      const updatePersonInfo = req.body;
-      const filter = { _id: new ObjectId(id) };
-      const options = { upsert: true };
-      const updateDoc = {
-        $set: {
-          ...updatePersonInfo,
-        },
-      };
+    // Update a person's info, including image
+    app.patch("/person/:id", upload.single("image"), async (req, res) => {
+      try {
+        const id = req.params.id;
 
-      //update
-      const result = await dataCollections.updateOne(
-        filter,
-        updateDoc,
-        options,
-      );
-      res.send(result);
+        // Check if id is a valid ObjectId
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({ error: "Invalid ObjectId" });
+        }
+
+        const updatePersonInfoString = req.body.updatePersonInfo;
+        const updatePersonInfo = JSON.parse(updatePersonInfoString);
+
+        const filter = { _id: new ObjectId(id) };
+        const updateDoc = { $set: updatePersonInfo };
+
+        // Update image if a new one is provided
+        if (req.file) {
+          const imageBuffer = req.file.buffer.toString("base64");
+          const public_id = `${id}-${req.file.originalname.replace(
+            /\s+/g,
+            "_",
+          )}`;
+
+          const imageResult = await cloudinary.uploader.upload(
+            "data:image/png;base64," + imageBuffer,
+            {
+              folder: "images",
+              public_id: public_id,
+            },
+          );
+
+          if (imageResult.secure_url) {
+            updateDoc.$set.image_url = imageResult.secure_url;
+          } else {
+            console.error("Cloudinary upload failed");
+            return res.status(500).json({ error: "Cloudinary Upload Failed" });
+          }
+        }
+
+        const result = await dataCollections.updateOne(filter, updateDoc);
+
+        res.json(result);
+      } catch (error) {
+        console.error("Error updating person info:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+      }
     });
 
     //get all person data from the database: via get method
