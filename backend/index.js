@@ -22,6 +22,11 @@ cloudinary.config({
 app.use(cors(corsOptions));
 app.use(express.json());
 
+app.use((req, res, next) => {
+  res.setHeader("Cache-control", "no-store");
+  next();
+});
+
 //
 app.get("/", (req, res) => {
   res.send("App is working!");
